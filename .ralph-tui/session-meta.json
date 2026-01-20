@@ -1,0 +1,15 @@
+{
+  "id": "3b4a8d6d-defc-441e-8b1c-447bfc7b73d7",
+  "status": "completed",
+  "startedAt": "2026-01-20T14:45:09.234Z",
+  "updatedAt": "2026-01-20T14:47:55.656Z",
+  "agentPlugin": "claude",
+  "trackerPlugin": "json",
+  "prdPath": ".opencode/plans/prd.json",
+  "currentIteration": 0,
+  "maxIterations": 20,
+  "totalTasks": 0,
+  "tasksCompleted": 0,
+  "cwd": "/Users/moha/Projects/patchview.nvim",
+  "endedAt": "2026-01-20T14:47:55.656Z"
+}
