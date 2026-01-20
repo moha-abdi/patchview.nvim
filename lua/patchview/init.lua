@@ -397,7 +397,9 @@ function M._on_file_change(bufnr, event)
       render.clear(bufnr)
       M.state.buffers[bufnr].hunks = {}
       vim.api.nvim_buf_call(bufnr, function()
-        vim.cmd("checktime")
+        local cursor = vim.api.nvim_win_get_cursor(0)
+        vim.cmd("silent! edit")
+        pcall(vim.api.nvim_win_set_cursor, 0, cursor)
       end)
       return
     end
@@ -411,12 +413,19 @@ function M._on_file_change(bufnr, event)
       notify_mod.change_detected(bufnr, #hunks)
     end
 
-    -- Reload buffer to get new content (required for both modes)
+    -- Reload buffer to get new content
+    -- Use :edit to force reload (more reliable than checktime for external changes)
     vim.api.nvim_buf_call(bufnr, function()
-      vim.cmd("checktime")
+      -- Save cursor position
+      local cursor = vim.api.nvim_win_get_cursor(0)
+      -- Force reload without prompting
+      vim.cmd("silent! edit")
+      -- Restore cursor position
+      pcall(vim.api.nvim_win_set_cursor, 0, cursor)
     end)
     
     -- Handle based on mode after buffer reload
+    -- Use slightly longer delay to ensure buffer is fully loaded
     vim.defer_fn(function()
       if not vim.api.nvim_buf_is_valid(bufnr) then
         return
@@ -436,7 +445,10 @@ function M._on_file_change(bufnr, event)
         -- Preview mode: show diff visualization (buffer reloaded but baseline not updated)
         render.show_hunks(bufnr, hunks, "pending")
       end
-    end, 50)
+      
+      -- Force redraw to ensure off-screen extmarks are registered
+      vim.cmd("redraw")
+    end, 100)
   end)
 end
 
