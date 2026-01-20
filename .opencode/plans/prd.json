@@ -1,0 +1,377 @@
+{
+  "name": "patchview.nvim",
+  "description": "Real-time diff visualization for Neovim when external tools edit files",
+  "userStories": [
+    {
+      "id": "T001",
+      "title": "File watching with libuv",
+      "description": "As a developer, I want the plugin to automatically detect when files are modified externally, so I can see AI-generated changes without manual refresh.",
+      "acceptanceCriteria": [
+        "Watcher detects file changes within 200ms",
+        "Debouncing prevents multiple events for single change",
+        "Watcher can be started/stopped per buffer"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "P0 - Core Diff Engine"
+    },
+    {
+      "id": "T002",
+      "title": "Myers diff algorithm",
+      "description": "As a developer, I want accurate diff computation between old and new file content, so I can see exactly what changed.",
+      "acceptanceCriteria": [
+        "Correctly identifies added lines",
+        "Correctly identifies deleted lines",
+        "Correctly identifies changed lines (delete + add)",
+        "Returns proper line numbers for old and new content"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "P0 - Core Diff Engine"
+    },
+    {
+      "id": "T003",
+      "title": "Hunk management",
+      "description": "As a developer, I want changes organized into navigable hunks, so I can quickly move between and act on groups of changes.",
+      "acceptanceCriteria": [
+        "Hunks created from diff changes with correct metadata",
+        "Navigation jumps to correct hunk positions",
+        "Hunk status can be changed and persisted"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "P0 - Core Diff Engine"
+    },
+    {
+      "id": "T007",
+      "title": "Duplicate notification prevention",
+      "description": "As a developer, I want only one notification per file change, so I'm not confused by duplicate alerts.",
+      "acceptanceCriteria": [
+        "Only one notification per file change",
+        "Both watcher and FocusGained can fire without duplicates",
+        "Hash comparison is fast and reliable"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "P0 - Bugfixes & Edge Cases"
+    },
+    {
+      "id": "T008",
+      "title": "Off-screen changes visibility",
+      "description": "As a developer, I want changes to off-screen lines to be properly rendered, so scrolling to them shows the diff visualization.",
+      "acceptanceCriteria": [
+        "Changes to off-screen lines visible when scrolling to them",
+        "Cursor position preserved after external edit",
+        "No need to refocus to see changes"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "P0 - Bugfixes & Edge Cases"
+    },
+    {
+      "id": "T004",
+      "title": "Inline highlighting with extmarks",
+      "description": "As a developer, I want added and changed lines to be highlighted directly in the buffer, so I can immediately see what's different.",
+      "acceptanceCriteria": [
+        "Added lines show green background and sign",
+        "Changed lines show appropriate highlighting",
+        "Line numbers are highlighted to match change type"
+      ],
+      "priority": 6,
+      "passes": true,
+      "notes": "P0 - Visualization & Rendering, depends on T002, T003"
+    },
+    {
+      "id": "T005",
+      "title": "Virtual text for deleted lines",
+      "description": "As a developer, I want deleted lines shown as virtual text above the change location, so I can see what was removed.",
+      "acceptanceCriteria": [
+        "Deleted lines appear as virtual text above changes",
+        "Virtual text aligns with buffer content",
+        "Old line numbers displayed correctly"
+      ],
+      "priority": 7,
+      "passes": true,
+      "notes": "P0 - Visualization & Rendering, depends on T004"
+    },
+    {
+      "id": "T006",
+      "title": "Topfill workaround for row 0",
+      "description": "As a developer, I want virtual lines above line 1 to be visible (Neovim bug workaround), so deletions at the top of files display correctly.",
+      "acceptanceCriteria": [
+        "Virtual lines above line 1 are visible",
+        "Topfill maintained when scrolling near top",
+        "No memory leaks from autocmds"
+      ],
+      "priority": 8,
+      "passes": true,
+      "notes": "P0 - Visualization & Rendering, depends on T005"
+    },
+    {
+      "id": "T009",
+      "title": "Accept/Reject hunk actions",
+      "description": "As a developer, I want to accept or reject individual hunks, so I can selectively apply external changes.",
+      "acceptanceCriteria": [
+        "Accept hunk updates baseline and clears visualization",
+        "Reject hunk reverts content to baseline",
+        "Actions work on hunk at cursor position"
+      ],
+      "priority": 9,
+      "passes": true,
+      "notes": "P1 - User Interaction, depends on T003"
+    },
+    {
+      "id": "T010",
+      "title": "Accept/Reject all hunks",
+      "description": "As a developer, I want to batch accept or reject all pending hunks, so I can quickly apply or discard all changes.",
+      "acceptanceCriteria": [
+        "Accept all updates baseline for all changes",
+        "Reject all reverts all changes",
+        "Proper notification of action result"
+      ],
+      "priority": 10,
+      "passes": true,
+      "notes": "P1 - User Interaction, depends on T009"
+    },
+    {
+      "id": "T011",
+      "title": "Configurable keymaps",
+      "description": "As a developer, I want to customize all keymaps, so the plugin fits my workflow.",
+      "acceptanceCriteria": [
+        "Default keymaps work out of the box",
+        "Users can override keymaps in setup()",
+        "Setting keymap to false disables it"
+      ],
+      "priority": 11,
+      "passes": true,
+      "notes": "P1 - User Interaction"
+    },
+    {
+      "id": "T012",
+      "title": "Telescope integration",
+      "description": "As a developer, I want a Telescope picker for viewing and navigating changes, so I can use my preferred fuzzy finder.",
+      "acceptanceCriteria": [
+        "Telescope picker shows all hunks",
+        "Selecting hunk jumps to location",
+        "Can accept/reject from picker"
+      ],
+      "priority": 12,
+      "passes": true,
+      "notes": "P1 - Integrations & Status, depends on T003"
+    },
+    {
+      "id": "T017",
+      "title": "README documentation",
+      "description": "As a new user, I want comprehensive README with installation, configuration, and usage examples, so I can quickly get started.",
+      "acceptanceCriteria": [
+        "Clear installation instructions",
+        "All config options documented",
+        "Examples for common use cases"
+      ],
+      "priority": 13,
+      "passes": true,
+      "notes": "P1 - Documentation & Testing"
+    },
+    {
+      "id": "T022",
+      "title": "Pure delete hunk handling",
+      "description": "As a developer, I want deletions to be displayed correctly even when no lines are added, so the diff visualization is accurate.",
+      "acceptanceCriteria": [
+        "Pure delete shows only virtual text",
+        "No incorrect highlighting on adjacent lines",
+        "Delete sign visible at deletion point"
+      ],
+      "priority": 14,
+      "passes": true,
+      "notes": "P1 - Core Diff Engine, depends on T003"
+    },
+    {
+      "id": "T024",
+      "title": "Ignore patterns",
+      "description": "As a developer, I want to exclude certain files from watching (like node_modules or temp files), so I'm not distracted by irrelevant changes.",
+      "acceptanceCriteria": [
+        "Configured patterns are ignored",
+        "Glob patterns work (*.tmp, node_modules/*)",
+        "Patterns checked efficiently"
+      ],
+      "priority": 15,
+      "passes": true,
+      "notes": "P1 - Core Diff Engine, depends on T001"
+    },
+    {
+      "id": "T025",
+      "title": "Trailing newline handling",
+      "description": "As a developer, I want files with different trailing newline styles to not show phantom changes, so the diff is accurate.",
+      "acceptanceCriteria": [
+        "No false positives from trailing newline differences",
+        "File content matches buffer content",
+        "Works with various line ending styles"
+      ],
+      "priority": 16,
+      "passes": true,
+      "notes": "P1 - Bugfixes & Edge Cases, depends on T002"
+    },
+    {
+      "id": "T014",
+      "title": "Preview mode",
+      "description": "As a developer, I want to review changes before they're auto-accepted, so I have full control over what gets applied.",
+      "acceptanceCriteria": [
+        "Preview mode shows persistent diff visualization",
+        "Changes not applied until explicitly accepted",
+        "Mode can be toggled at runtime"
+      ],
+      "priority": 17,
+      "passes": true,
+      "notes": "P2 - Modes & Configuration, depends on T009"
+    },
+    {
+      "id": "T015",
+      "title": "Statusline component",
+      "description": "As a developer, I want a statusline component showing change summary, so I can quickly see pending changes at a glance.",
+      "acceptanceCriteria": [
+        "Statusline shows pending hunk count",
+        "Updates when changes detected",
+        "Returns empty string when no changes"
+      ],
+      "priority": 18,
+      "passes": true,
+      "notes": "P2 - Integrations & Status, depends on T003"
+    },
+    {
+      "id": "T016",
+      "title": "Animation/fade effects",
+      "description": "As a developer, I want highlights to fade out gradually, so the visual transition is less jarring.",
+      "acceptanceCriteria": [
+        "Highlights fade out after configured duration",
+        "Animation can be disabled in config",
+        "Smooth visual transition"
+      ],
+      "priority": 19,
+      "passes": true,
+      "notes": "P2 - Visualization & Rendering, depends on T004"
+    },
+    {
+      "id": "T018",
+      "title": "Vimdoc help file",
+      "description": "As a user, I want in-editor :help documentation, so I can reference commands and functions without leaving Neovim.",
+      "acceptanceCriteria": [
+        ":help patchview works",
+        "All commands documented",
+        "Proper vimdoc formatting"
+      ],
+      "priority": 20,
+      "passes": true,
+      "notes": "P2 - Documentation & Testing"
+    },
+    {
+      "id": "T019",
+      "title": "Unit tests for diff algorithm",
+      "description": "As a maintainer, I want test coverage for the diff algorithm, so I can confidently refactor without breaking functionality.",
+      "acceptanceCriteria": [
+        "All diff scenarios covered",
+        "Tests can run with plenary.nvim",
+        "Clear test output"
+      ],
+      "priority": 21,
+      "passes": true,
+      "notes": "P2 - Documentation & Testing, depends on T002"
+    },
+    {
+      "id": "T021",
+      "title": "Split diff view",
+      "description": "As a developer, I want a side-by-side diff view in split windows, so I can compare old and new content simultaneously.",
+      "acceptanceCriteria": [
+        "Split view shows old vs new content",
+        "Scroll sync works correctly",
+        "Can close split with keymap"
+      ],
+      "priority": 22,
+      "passes": true,
+      "notes": "P2 - Visualization & Rendering, depends on T003"
+    },
+    {
+      "id": "T026",
+      "title": "Floating action bar widget",
+      "description": "As a developer, I want a floating widget near changes showing navigation and quick actions (like Cursor IDE), so I can easily review and act on changes.",
+      "acceptanceCriteria": [
+        "Widget appears when changes are detected",
+        "Shows correct hunk position (X of Y)",
+        "Undo button rejects current hunk",
+        "Keep button accepts current hunk",
+        "Navigation cycles through hunks",
+        "Widget repositions appropriately",
+        "Keyboard shortcuts work from widget"
+      ],
+      "priority": 23,
+      "passes": true,
+      "notes": "P1 - User Interaction, depends on T003, T009",
+      "completionNotes": "Completed by agent"
+    },
+    {
+      "id": "T027",
+      "title": "Follow changes (auto-scroll)",
+      "description": "As a developer, I want the view to automatically scroll to where external changes happen, so I can see AI edits in real-time.",
+      "acceptanceCriteria": [
+        "When change detected off-screen, view scrolls to show it",
+        "Change is centered in viewport (not at edge)",
+        "Can be disabled via config",
+        "Can be toggled at runtime with command",
+        "Cursor position handled gracefully"
+      ],
+      "priority": 24,
+      "passes": true,
+      "notes": "P1 - User Interaction, depends on T001",
+      "completionNotes": "Completed by agent"
+    },
+    {
+      "id": "T028",
+      "title": "Undo last accept/reject",
+      "description": "As a developer, I want to undo accidental accept/reject actions, so I have a safety net for mistakes.",
+      "acceptanceCriteria": [
+        "Can undo last accept (restores deleted content)",
+        "Can undo last reject (re-applies the change)",
+        "History persists until buffer write",
+        "Keymap and command work correctly",
+        "Notification confirms undo action"
+      ],
+      "priority": 25,
+      "passes": true,
+      "notes": "P1 - User Interaction, depends on T009",
+      "completionNotes": "Completed by agent"
+    },
+    {
+      "id": "T037",
+      "title": "Whisper/quiet mode",
+      "description": "As a developer, I want to suppress notifications for background batch edits, so I'm not interrupted when AI tools make many small changes.",
+      "acceptanceCriteria": [
+        "Quiet mode disables notification popups",
+        "Changes are still tracked and visualized",
+        "Can be toggled at runtime with command",
+        "Config option to set default mode",
+        "Statusline still updates in quiet mode"
+      ],
+      "priority": 26,
+      "passes": true,
+      "notes": "P1 - User Interaction, depends on T015",
+      "completionNotes": "Completed by agent"
+    },
+    {
+      "id": "T036",
+      "title": "Change density indicators",
+      "description": "As a developer, I want a mini-map or ruler showing where changes are located in the file, so I can quickly navigate to dense areas of edits.",
+      "acceptanceCriteria": [
+        "Visual indicator in sign column or ruler shows change locations",
+        "Indicator reflects relative position of changes in file",
+        "Can be toggled on/off in config",
+        "Updates in real-time as changes are detected"
+      ],
+      "priority": 27,
+      "passes": true,
+      "notes": "P2 - Visualization & Rendering, depends on T003, T004",
+      "completionNotes": "Completed by agent"
+    }
+  ],
+  "metadata": {
+    "updatedAt": "2026-01-20T12:48:48.337Z"
+  }
+}
