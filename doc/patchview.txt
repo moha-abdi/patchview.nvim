@@ -1,0 +1,313 @@
+*patchview.txt*  Real-time diff visualization for external edits
+
+Author:  patchview.nvim contributors
+License: MIT
+
+==============================================================================
+CONTENTS                                                    *patchview-contents*
+
+    1. Introduction ............................ |patchview-introduction|
+    2. Requirements ............................ |patchview-requirements|
+    3. Installation ............................ |patchview-installation|
+    4. Configuration ........................... |patchview-configuration|
+    5. Commands ................................ |patchview-commands|
+    6. Mappings ................................ |patchview-mappings|
+    7. Functions ............................... |patchview-functions|
+    8. Telescope ............................... |patchview-telescope|
+    9. Git Integration ......................... |patchview-git|
+   10. Highlights .............................. |patchview-highlights|
+
+==============================================================================
+1. INTRODUCTION                                         *patchview-introduction*
+
+Patchview.nvim provides real-time diff visualization for Neovim when external
+tools edit your files. Similar to how GUI editors like Cursor show streaming
+diffs, patchview.nvim lets you see changes as they happen when tools like
+Claude Code, OpenCode, or other AI assistants modify your files.
+
+Features:
+- Real-time file watching using vim.loop (libuv)
+- Inline diff visualization with highlights
+- Configurable auto/preview acceptance modes
+- Git-aware change classification
+- Telescope integration for browsing changes
+- Hunk navigation and accept/reject actions
+
+==============================================================================
+2. REQUIREMENTS                                         *patchview-requirements*
+
+- Neovim 0.8 or later
+- Optional: telescope.nvim for enhanced change browsing
+- Optional: Git for git-aware mode
+
+==============================================================================
+3. INSTALLATION                                         *patchview-installation*
+
+Using lazy.nvim: >lua
+    {
+      "yourusername/patchview.nvim",
+      config = function()
+        require("patchview").setup()
+      end,
+    }
+<
+
+Using packer.nvim: >lua
+    use {
+      "yourusername/patchview.nvim",
+      config = function()
+        require("patchview").setup()
+      end,
+    }
+<
+
+==============================================================================
+4. CONFIGURATION                                       *patchview-configuration*
+
+Call `require("patchview").setup(opts)` with your configuration options.
+
+Default configuration: >lua
+    require("patchview").setup({
+      watch = {
+        enabled = true,           -- Enable file watching
+        debounce_ms = 100,        -- Debounce time for changes
+        ignore_patterns = {},     -- Patterns to ignore
+      },
+      diff = {
+        algorithm = "myers",      -- Diff algorithm
+        context_lines = 3,        -- Context lines around changes
+      },
+      render = {
+        style = "inline",         -- "inline", "signs", or "both"
+        added_hl = "DiffAdd",
+        removed_hl = "DiffDelete",
+        changed_hl = "DiffChange",
+        show_removed_virtual = true,
+        animation = {
+          enabled = true,
+          duration_ms = 300,
+        },
+      },
+      git = {
+        enabled = true,
+        show_external = true,
+        show_unstaged = true,
+        show_staged = false,
+        baseline = "working_tree",
+      },
+      telescope = {
+        enabled = true,
+      },
+      mode = "auto",              -- "auto" or "preview"
+      keymaps = {
+        next_hunk = "]c",
+        prev_hunk = "[c",
+        accept_hunk = "<leader>pa",
+        reject_hunk = "<leader>pr",
+        accept_all = "<leader>pA",
+        reject_all = "<leader>pR",
+        toggle_preview = "<leader>pp",
+        telescope_changes = "<leader>pf",
+      },
+      notify = {
+        on_change = true,
+        on_accept = false,
+        on_reject = false,
+      },
+    })
+<
+
+                                                            *patchview-mode*
+mode ~
+    The acceptance mode determines how changes are handled:
+    - "auto": Changes apply automatically, you can undo with |u|
+    - "preview": Changes are shown but not applied until you accept them
+
+                                                   *patchview-watch-options*
+watch.enabled ~
+    Enable or disable file watching globally.
+
+watch.debounce_ms ~
+    Time in milliseconds to wait before processing rapid file changes.
+    Helps prevent multiple triggers when files are being edited quickly.
+
+watch.ignore_patterns ~
+    List of Lua patterns for files to ignore. Example: >lua
+        ignore_patterns = { "%.tmp$", "%.swp$" }
+<
+
+                                                  *patchview-render-options*
+render.style ~
+    How to display changes:
+    - "inline": Highlight changed lines in the buffer
+    - "signs": Show signs in the sign column
+    - "both": Show both inline highlights and signs
+
+render.show_removed_virtual ~
+    Show removed lines as virtual text above the change location.
+
+==============================================================================
+5. COMMANDS                                               *patchview-commands*
+
+                                                          *:PatchviewEnable*
+:PatchviewEnable        Enable patchview watching for the current buffer.
+
+                                                         *:PatchviewDisable*
+:PatchviewDisable       Disable patchview watching for the current buffer.
+
+                                                          *:PatchviewToggle*
+:PatchviewToggle        Toggle patchview watching for the current buffer.
+
+                                                          *:PatchviewStatus*
+:PatchviewStatus        Show a floating window with patchview status info.
+
+                                                       *:PatchviewAcceptAll*
+:PatchviewAcceptAll     Accept all pending changes in the current buffer.
+
+                                                       *:PatchviewRejectAll*
+:PatchviewRejectAll     Reject all pending changes in the current buffer.
+
+                                                            *:PatchviewMode*
+:PatchviewMode [mode]   Set the acceptance mode to "auto" or "preview".
+                        Without argument, toggles between modes.
+
+                                                             *:PatchviewGit*
+:PatchviewGit [on|off]  Toggle git-aware mode. Without argument, toggles.
+
+                                                       *:PatchviewTelescope*
+:PatchviewTelescope     Open Telescope picker for browsing all changes.
+
+                                                        *:PatchviewSnapshot*
+:PatchviewSnapshot      Take a baseline snapshot of the current buffer.
+                        Useful for tracking only "new" changes.
+
+==============================================================================
+6. MAPPINGS                                               *patchview-mappings*
+
+Default mappings (can be customized in config):
+
+    ]c              Jump to next hunk
+    [c              Jump to previous hunk
+    <leader>pa      Accept current hunk
+    <leader>pr      Reject current hunk
+    <leader>pA      Accept all hunks
+    <leader>pR      Reject all hunks
+    <leader>pp      Toggle preview mode
+    <leader>pf      Open Telescope picker
+
+To disable a mapping, set it to `false` in config: >lua
+    keymaps = {
+      next_hunk = false,  -- Disable ]c mapping
+    }
+<
+
+==============================================================================
+7. FUNCTIONS                                             *patchview-functions*
+
+                                                         *patchview.setup()*
+patchview.setup({opts})
+    Initialize patchview with the given configuration options.
+    Must be called to activate the plugin.
+
+                                                        *patchview.enable()*
+patchview.enable()
+    Enable patchview for the current buffer.
+
+                                                       *patchview.disable()*
+patchview.disable()
+    Disable patchview for the current buffer.
+
+                                                        *patchview.toggle()*
+patchview.toggle()
+    Toggle patchview for the current buffer.
+
+                                                     *patchview.next_hunk()*
+patchview.next_hunk()
+    Jump to the next hunk in the current buffer.
+
+                                                     *patchview.prev_hunk()*
+patchview.prev_hunk()
+    Jump to the previous hunk in the current buffer.
+
+                                                   *patchview.accept_hunk()*
+patchview.accept_hunk()
+    Accept the hunk at the cursor position.
+
+                                                   *patchview.reject_hunk()*
+patchview.reject_hunk()
+    Reject the hunk at the cursor position.
+
+                                                    *patchview.accept_all()*
+patchview.accept_all()
+    Accept all pending hunks in the current buffer.
+
+                                                    *patchview.reject_all()*
+patchview.reject_all()
+    Reject all pending hunks in the current buffer.
+
+                                                    *patchview.statusline()*
+patchview.statusline()
+    Returns a string suitable for statusline integration.
+    Example: "PV:3(+10 -5)" means 3 pending hunks with 10 additions
+    and 5 deletions.
+
+==============================================================================
+8. TELESCOPE                                             *patchview-telescope*
+
+If telescope.nvim is installed, patchview provides additional pickers:
+
+:Telescope patchview changes
+    Browse all pending changes across all buffers.
+    - <CR>: Jump to change
+    - <C-a>: Accept hunk
+    - <C-r>: Reject hunk
+
+:Telescope patchview files
+    Browse files with pending changes.
+
+If telescope is not available, a fallback using |vim.ui.select()| is used.
+
+==============================================================================
+9. GIT INTEGRATION                                           *patchview-git*
+
+When git-aware mode is enabled, patchview can distinguish between:
+
+- External changes (from AI tools): highlighted prominently
+- Git unstaged changes: shown with dimmer highlights
+- Git staged changes: optionally shown
+
+This helps you understand what the AI tool changed vs what you changed.
+
+Configuration options:
+
+git.enabled ~
+    Enable git integration.
+
+git.baseline ~
+    What to compare against:
+    - "working_tree": Compare external changes to your working tree
+    - "staged": Compare to staged content
+    - "head": Compare to HEAD commit
+
+==============================================================================
+10. HIGHLIGHTS                                          *patchview-highlights*
+
+Patchview defines the following highlight groups:
+
+    PatchviewAdd            Added lines (links to DiffAdd)
+    PatchviewDelete         Deleted lines (links to DiffDelete)
+    PatchviewChange         Changed lines (links to DiffChange)
+    PatchviewDeleteVirtual  Virtual text for removed lines
+    PatchviewSignAdd        Sign column for additions
+    PatchviewSignDelete     Sign column for deletions
+    PatchviewSignChange     Sign column for changes
+    PatchviewExternal       External tool changes (git-aware)
+    PatchviewGitUnstaged    Git unstaged changes (git-aware)
+    PatchviewGitStaged      Git staged changes (git-aware)
+
+You can customize these in your colorscheme or config: >lua
+    vim.api.nvim_set_hl(0, "PatchviewAdd", { bg = "#2d4a2d" })
+<
+
+==============================================================================
+vim:tw=78:ts=8:ft=help:norl:

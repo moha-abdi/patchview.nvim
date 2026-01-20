@@ -1,0 +1,28 @@
+# Neovim
+*.swp
+*.swo
+*~
+.netrwhist
+
+# Tags
+tags
+.tags
+
+# Temporary files
+*.tmp
+*.bak
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.sublime-*
+
+# Test output
+.test/
+test_output/
+
+# Documentation build
+doc/tags
