@@ -186,14 +186,11 @@ function M._render_deleted_virtual(bufnr, hunk, ns)
       lnum_str = string.rep(" ", linenr_width)
     end
     
-    -- Content with trailing padding to fill window width
+    -- Content with trailing padding to fill full window width
+    -- Use generous padding to handle any screen size (excess is off-screen, no harm)
     local content = old_line
-    local content_width = vim.fn.strdisplaywidth(content)
-    local text_area_width = win_width - textoff
-    local trailing_pad = text_area_width - content_width
-    if trailing_pad > 0 then
-      content = content .. string.rep(" ", trailing_pad)
-    end
+    local max_width = math.max(win_width, 300)  -- Support wide screens
+    content = content .. string.rep(" ", max_width)
     
     -- Build virtual line matching added lines:
     -- ┃ (fg only) + space (no bg) + line_number (bg) + content (bg)
