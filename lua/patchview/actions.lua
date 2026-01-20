@@ -3,6 +3,42 @@
 
 local M = {}
 
+-- Action history for undo functionality
+-- Structure: { [bufnr] = { {action = "accept"|"reject", hunk = hunk_copy, prev_status = string} } }
+local action_history = {}
+
+--- Clear action history for a buffer
+---@param bufnr number Buffer number
+local function clear_history(bufnr)
+  action_history[bufnr] = nil
+end
+
+--- Add an action to history
+---@param bufnr number Buffer number
+---@param action string "accept" or "reject"
+---@param hunk table Hunk that was acted upon
+local function push_history(bufnr, action, hunk)
+  if not action_history[bufnr] then
+    action_history[bufnr] = {}
+  end
+  -- Store a copy of the hunk with its previous state
+  table.insert(action_history[bufnr], {
+    action = action,
+    hunk = vim.deepcopy(hunk),
+    prev_status = hunk.status,
+  })
+end
+
+--- Get the last action from history
+---@param bufnr number Buffer number
+---@return table|nil Last action entry
+local function pop_history(bufnr)
+  if not action_history[bufnr] or #action_history[bufnr] == 0 then
+    return nil
+  end
+  return table.remove(action_history[bufnr])
+end
+
 --- Navigate to the next hunk
 function M.next_hunk()
   local patchview = require("patchview")
@@ -76,6 +112,9 @@ function M.accept_hunk()
   end
 
   if hunk and hunk.status == "pending" then
+    -- Store previous state for undo
+    local prev_status = hunk.status
+
     -- In preview mode, apply the change
     if config.options.mode == "preview" then
       M._apply_hunk(bufnr, hunk)
@@ -83,6 +122,9 @@ function M.accept_hunk()
 
     -- Mark as accepted
     hunks_mod.accept(hunk)
+
+    -- Record action for undo
+    push_history(bufnr, "accept", hunk)
 
     -- Update rendering
     render.show_hunks(bufnr, buf_state.hunks, "pending")
@@ -137,6 +179,9 @@ function M.reject_hunk()
   end
 
   if hunk and hunk.status == "pending" then
+    -- Store previous state for undo
+    local prev_status = hunk.status
+
     -- In preview mode, revert the change
     if config.options.mode == "preview" then
       M._revert_hunk(bufnr, hunk)
@@ -144,6 +189,9 @@ function M.reject_hunk()
 
     -- Mark as rejected
     hunks_mod.reject(hunk)
+
+    -- Record action for undo
+    push_history(bufnr, "reject", hunk)
 
     -- Update rendering
     render.show_hunks(bufnr, buf_state.hunks, "pending")
@@ -216,6 +264,9 @@ function M.accept_all()
   patchview._take_buffer_snapshot(bufnr)
   buf_state.hunks = {}
 
+  -- Clear undo history (accept all is a bulk action)
+  clear_history(bufnr)
+
   vim.notify(string.format("Patchview: Accepted %d hunks", #pending), vim.log.levels.INFO)
 end
 
@@ -262,6 +313,9 @@ function M.reject_all()
   render.clear(bufnr)
   buf_state.hunks = {}
 
+  -- Clear undo history (reject all is a bulk action)
+  clear_history(bufnr)
+
   vim.notify(string.format("Patchview: Rejected %d hunks", #pending), vim.log.levels.INFO)
 end
 
@@ -300,10 +354,89 @@ function M._revert_hunk(bufnr, hunk)
   end
 end
 
---- Undo the last action
+--- Undo the last accept/reject action
 function M.undo()
-  -- Use Neovim's built-in undo
-  vim.cmd("undo")
+  local patchview = require("patchview")
+  local hunks_mod = require("patchview.hunks")
+  local render = require("patchview.render")
+  local config = require("patchview.config")
+  local notify_mod = require("patchview.notify")
+
+  local bufnr = vim.api.nvim_get_current_buf()
+  local buf_state = patchview.state.buffers[bufnr]
+
+  if not buf_state or #buf_state.hunks == 0 then
+    vim.notify("Patchview: No hunks in current buffer", vim.log.levels.INFO)
+    return
+  end
+
+  -- Get the last action from history
+  local last_action = pop_history(bufnr)
+
+  if not last_action then
+    vim.notify("Patchview: Nothing to undo", vim.log.levels.INFO)
+    return
+  end
+
+  -- Find the current hunk by ID (the hunk in the buffer may have been modified)
+  local hunk = hunks_mod.find_by_id(buf_state.hunks, last_action.hunk.id)
+
+  if not hunk then
+    -- Hunk may have been removed from the list
+    -- We need to restore it
+    hunk = last_action.hunk
+    table.insert(buf_state.hunks, hunk)
+  end
+
+  -- Undo the action
+  if last_action.action == "accept" then
+    -- Undo accept: restore to pending
+    hunk.status = "pending"
+
+    -- In preview mode, revert the applied change
+    if config.options.mode == "preview" then
+      M._revert_hunk(bufnr, hunk)
+    end
+
+    notify_mod.info("Undid accept (hunk restored to pending)")
+  elseif last_action.action == "reject" then
+    -- Undo reject: restore to pending
+    hunk.status = "pending"
+
+    -- In preview mode, re-apply the rejected change
+    if config.options.mode == "preview" then
+      M._apply_hunk(bufnr, hunk)
+    end
+
+    notify_mod.info("Undid reject (hunk restored to pending)")
+  end
+
+  -- Update rendering
+  render.show_hunks(bufnr, buf_state.hunks, "pending")
+
+  -- Update widget if enabled
+  if config.options.widget and config.options.widget.enabled then
+    local widget = require("patchview.widget")
+    local pending = vim.tbl_filter(function(h)
+      return h.status == "pending"
+    end, buf_state.hunks)
+    if #pending == 0 then
+      widget.hide(bufnr)
+    else
+      widget.show(bufnr, buf_state.hunks)
+    end
+  end
+
+  -- Move cursor to the undone hunk
+  local start_line, _ = hunks_mod.get_line_range(hunk)
+  vim.api.nvim_win_set_cursor(0, { start_line, 0 })
+  render.highlight_hunk(bufnr, hunk)
+end
+
+--- Clear action history (called on buffer write)
+---@param bufnr number Buffer number
+function M.clear_history(bufnr)
+  clear_history(bufnr)
 end
 
 return M

@@ -208,6 +208,10 @@ function M._create_commands()
       return { "on", "off" }
     end,
   })
+
+  cmd("PatchviewUndo", function()
+    M.undo()
+  end, { desc = "Undo last accept/reject action" })
 end
 
 --- Setup keymaps
@@ -232,6 +236,7 @@ function M._setup_keymaps()
   map(keymaps.toggle_preview, function() M.toggle_preview() end, "Toggle preview mode")
   map(keymaps.telescope_changes, function() M.open_telescope() end, "Open patchview telescope")
   map(keymaps.split_diff, function() M.split_diff() end, "Toggle split diff view")
+  map(keymaps.undo, function() M.undo() end, "Undo last patchview action")
 end
 
 --- Setup autocommands
@@ -594,6 +599,9 @@ function M._on_buffer_write(bufnr)
     local render = require_module("render")
     render.clear(bufnr)
     M.state.buffers[bufnr].hunks = {}
+    -- Clear undo history on buffer write
+    local actions = require_module("actions")
+    actions.clear_history(bufnr)
   end
 end
 
@@ -661,6 +669,12 @@ end
 function M.reject_all()
   local actions = require_module("actions")
   actions.reject_all()
+end
+
+--- Undo last accept/reject action
+function M.undo()
+  local actions = require_module("actions")
+  actions.undo()
 end
 
 --- Toggle preview mode

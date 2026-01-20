@@ -74,6 +74,7 @@ M.defaults = {
     toggle_preview = "<leader>pp",
     telescope_changes = "<leader>pf",  -- Open telescope picker
     split_diff = "<leader>pd",         -- Open split diff view
+    undo = "<leader>pu",                -- Undo last accept/reject
   },
 
   -- Notifications
