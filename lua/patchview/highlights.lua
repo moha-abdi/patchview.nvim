@@ -54,6 +54,13 @@ function M.setup()
     PatchviewStatusWatching = { fg = "#98c379" },
     PatchviewStatusPaused = { fg = "#e5c07b" },
     PatchviewStatusError = { fg = "#e06c75" },
+
+    -- Floating widget highlights
+    PatchviewWidgetNormal = { fg = "#abb2bf", bg = "#282c34" },
+    PatchviewWidgetBtn = { fg = "#61afef", bold = true },
+    PatchviewWidgetUndo = { fg = "#e06c75", bold = true },
+    PatchviewWidgetKeep = { fg = "#98c379", bold = true },
+    PatchviewWidgetPos = { fg = "#5c6370" },
   }
 
   -- Apply custom highlights from config if provided

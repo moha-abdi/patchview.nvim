@@ -87,6 +87,20 @@ function M.accept_hunk()
     -- Update rendering
     render.show_hunks(bufnr, buf_state.hunks, "pending")
 
+    -- Update widget if enabled
+    if config.options.widget and config.options.widget.enabled then
+      local widget = require("patchview.widget")
+      -- Filter pending hunks and update widget
+      local pending = vim.tbl_filter(function(h)
+        return h.status == "pending"
+      end, buf_state.hunks)
+      if #pending == 0 then
+        widget.hide(bufnr)
+      else
+        widget.show(bufnr, buf_state.hunks)
+      end
+    end
+
     -- Notify if enabled
     if config.options.notify.on_accept then
       notify_mod.hunk_accepted()
@@ -133,6 +147,20 @@ function M.reject_hunk()
 
     -- Update rendering
     render.show_hunks(bufnr, buf_state.hunks, "pending")
+
+    -- Update widget if enabled
+    if config.options.widget and config.options.widget.enabled then
+      local widget = require("patchview.widget")
+      -- Filter pending hunks and update widget
+      local pending = vim.tbl_filter(function(h)
+        return h.status == "pending"
+      end, buf_state.hunks)
+      if #pending == 0 then
+        widget.hide(bufnr)
+      else
+        widget.show(bufnr, buf_state.hunks)
+      end
+    end
 
     -- Notify if enabled
     if config.options.notify.on_reject then

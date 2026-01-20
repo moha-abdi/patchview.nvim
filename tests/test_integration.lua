@@ -100,9 +100,17 @@ test("telescope module loads", function()
   assert(telescope.open, "Telescope should have open function")
 end)
 
+test("widget module loads", function()
+  local widget = require("patchview.widget")
+  assert(widget.show, "Widget should have show function")
+  assert(widget.hide, "Widget should have hide function")
+  assert(widget.toggle, "Widget should have toggle function")
+end)
+
 test("main module loads", function()
   local patchview = require("patchview")
   assert(patchview.setup, "Patchview should have setup function")
+  assert(patchview.toggle_widget, "Patchview should have toggle_widget function")
 end)
 
 test("full setup works", function()

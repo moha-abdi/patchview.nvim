@@ -18,6 +18,7 @@ local modules = {
   notify = nil,
   git = nil,
   telescope = nil,
+  widget = nil,
 }
 
 --- Lazy load a module
@@ -79,6 +80,12 @@ M.git = setmetatable({}, {
   end,
 })
 
+M.widget = setmetatable({}, {
+  __index = function(_, key)
+    return require_module("widget")[key]
+  end,
+})
+
 -- State management
 M.state = {
   enabled = false,
@@ -101,6 +108,10 @@ function M.setup(opts)
   -- Setup signs
   local signs = require_module("signs")
   signs.setup()
+
+  -- Setup widget
+  local widget = require_module("widget")
+  widget.setup()
 
   -- Create user commands
   M._create_commands()
@@ -183,6 +194,10 @@ function M._create_commands()
   cmd("PatchviewDiffClose", function()
     M.close_split_diff()
   end, { desc = "Close split diff view" })
+
+  cmd("PatchviewWidget", function()
+    M.toggle_widget()
+  end, { desc = "Toggle floating action bar widget" })
 end
 
 --- Setup keymaps
@@ -439,7 +454,7 @@ function M._on_file_change(bufnr, event)
       if not vim.api.nvim_buf_is_valid(bufnr) then
         return
       end
-      
+
       if config.options.mode == "auto" then
         -- Auto mode: update baseline and show applied highlights temporarily
         M._take_buffer_snapshot(bufnr)
@@ -453,8 +468,14 @@ function M._on_file_change(bufnr, event)
       else
         -- Preview mode: show diff visualization (buffer reloaded but baseline not updated)
         render.show_hunks(bufnr, hunks, "pending")
+
+        -- Show floating widget if enabled
+        if config.options.widget.enabled and config.options.widget.auto_show then
+          local widget_mod = require_module("widget")
+          widget_mod.show(bufnr, hunks)
+        end
       end
-      
+
       -- Force redraw to ensure off-screen extmarks are registered
       vim.cmd("redraw")
     end, 100)
@@ -635,6 +656,12 @@ end
 function M.close_split_diff()
   local preview = require_module("preview")
   preview.close_split_diff()
+end
+
+--- Toggle floating action bar widget
+function M.toggle_widget()
+  local widget_mod = require_module("widget")
+  widget_mod.toggle()
 end
 
 return M

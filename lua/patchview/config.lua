@@ -75,6 +75,15 @@ M.defaults = {
     on_accept = false,        -- Notify on accept
     on_reject = false,        -- Notify on reject
   },
+
+  -- Floating action bar widget (like Cursor IDE)
+  widget = {
+    enabled = true,           -- Enable floating action bar
+    border_style = "rounded", -- "rounded", "single", "double", "shadow", or "none"
+    winblend = 0,             -- Transparency (0-100)
+    auto_show = true,         -- Automatically show when changes are detected
+    position = "bottom",      -- "top" or "bottom" relative to hunk
+  },
 }
 
 -- Current configuration (will be populated by setup)
