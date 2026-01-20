@@ -12,6 +12,13 @@ M.defaults = {
     ignore_patterns = {},     -- Patterns to ignore (e.g., "*.tmp")
   },
 
+  -- Follow changes (auto-scroll)
+  follow = {
+    enabled = true,           -- Auto-scroll to changes when detected off-screen
+    center = true,            -- Center the change in viewport
+    only_if_off_screen = true, -- Only scroll if change is not visible
+  },
+
   -- Diff visualization
   diff = {
     algorithm = "myers",      -- "myers" or "patience"

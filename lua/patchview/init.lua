@@ -198,6 +198,16 @@ function M._create_commands()
   cmd("PatchviewWidget", function()
     M.toggle_widget()
   end, { desc = "Toggle floating action bar widget" })
+
+  cmd("PatchviewFollow", function(args)
+    M.toggle_follow(args.args)
+  end, {
+    desc = "Toggle follow changes (auto-scroll)",
+    nargs = "?",
+    complete = function()
+      return { "on", "off" }
+    end,
+  })
 end
 
 --- Setup keymaps
@@ -380,6 +390,68 @@ local function hash_content(lines)
   return string.format("%s|%s|%d|%d", first, last, count, total_len)
 end
 
+--- Check if a line is visible in the current window
+---@param winnr number Window number
+---@param line number Line number (1-indexed)
+---@return boolean True if line is visible
+local function is_line_visible(winnr, line)
+  local view = vim.api.nvim_win_call(winnr, function()
+    return vim.api.nvim_win_get_view(0)
+  end)
+  local top_line = view.topline or 1
+  local bot_line = top_line + vim.api.nvim_win_get_height(winnr) - 1
+  -- Account for topfill (virtual lines at top)
+  if view.topfill then
+    top_line = top_line - 1
+  end
+  return line >= top_line and line <= bot_line
+end
+
+--- Scroll to the first hunk, respecting follow options
+---@param bufnr number Buffer number
+---@param hunks table[] List of hunks
+local function scroll_to_first_hunk(bufnr, hunks)
+  local config = require_module("config")
+
+  if not config.options.follow.enabled then
+    return
+  end
+
+  if #hunks == 0 then
+    return
+  end
+
+  -- Get the first hunk
+  local hunks_mod = require_module("hunks")
+  local first_hunk = hunks[1]
+  local start_line, _ = hunks_mod.get_line_range(first_hunk)
+
+  -- Find the window displaying this buffer
+  local winnr = vim.fn.bufwinid(bufnr)
+  if winnr == -1 then
+    return -- No window displaying this buffer
+  end
+
+  -- Check if we should scroll
+  if config.options.follow.only_if_off_screen then
+    if is_line_visible(winnr, start_line) then
+      return -- Already visible, don't scroll
+    end
+  end
+
+  -- Scroll to the hunk
+  vim.api.nvim_win_call(winnr, function()
+    if config.options.follow.center then
+      -- Center the hunk in viewport
+      vim.api.nvim_win_set_cursor(0, { start_line, 0 })
+      vim.cmd("normal! zz")
+    else
+      -- Move cursor to hunk (scrolls hunk to top if needed)
+      vim.api.nvim_win_set_cursor(0, { start_line, 0 })
+    end
+  end)
+end
+
 --- Handle file change event
 ---@param bufnr number Buffer number
 ---@param event table Event data
@@ -440,12 +512,17 @@ function M._on_file_change(bufnr, event)
     -- Reload buffer to get new content
     -- Use :edit to force reload (more reliable than checktime for external changes)
     vim.api.nvim_buf_call(bufnr, function()
-      -- Save cursor position
-      local cursor = vim.api.nvim_win_get_cursor(0)
+      -- Save cursor position if follow is disabled
+      local saved_cursor = nil
+      if not config.options.follow.enabled then
+        saved_cursor = vim.api.nvim_win_get_cursor(0)
+      end
       -- Force reload without prompting
       vim.cmd("silent! edit")
-      -- Restore cursor position
-      pcall(vim.api.nvim_win_set_cursor, 0, cursor)
+      -- Restore cursor position only if follow is disabled
+      if saved_cursor then
+        pcall(vim.api.nvim_win_set_cursor, 0, saved_cursor)
+      end
     end)
     
     -- Handle based on mode after buffer reload
@@ -475,6 +552,9 @@ function M._on_file_change(bufnr, event)
           widget_mod.show(bufnr, hunks)
         end
       end
+
+      -- Auto-scroll to first hunk if enabled
+      scroll_to_first_hunk(bufnr, hunks)
 
       -- Force redraw to ensure off-screen extmarks are registered
       vim.cmd("redraw")
@@ -615,6 +695,25 @@ function M.toggle_git(state)
     config.options.git.enabled = false
   else
     config.options.git.enabled = not config.options.git.enabled
+  end
+end
+
+--- Toggle follow changes (auto-scroll)
+---@param state string|nil "on", "off", or nil to toggle
+function M.toggle_follow(state)
+  local config = require_module("config")
+  local current = config.options.follow.enabled
+
+  if state == "on" then
+    config.options.follow.enabled = true
+    vim.notify("Patchview: Follow changes enabled", vim.log.levels.INFO)
+  elseif state == "off" then
+    config.options.follow.enabled = false
+    vim.notify("Patchview: Follow changes disabled", vim.log.levels.INFO)
+  else
+    config.options.follow.enabled = not current
+    local status = config.options.follow.enabled and "enabled" or "disabled"
+    vim.notify("Patchview: Follow changes " .. status, vim.log.levels.INFO)
   end
 end
 
