@@ -39,7 +39,7 @@ local function pop_history(bufnr)
   return table.remove(action_history[bufnr])
 end
 
---- Navigate to the next hunk
+--- Navigate to the next hunk (only pending hunks)
 function M.next_hunk()
   local patchview = require("patchview")
   local hunks_mod = require("patchview.hunks")
@@ -53,8 +53,18 @@ function M.next_hunk()
     return
   end
 
+  -- Only navigate through pending hunks
+  local pending = vim.tbl_filter(function(h)
+    return h.status == "pending"
+  end, buf_state.hunks)
+
+  if #pending == 0 then
+    vim.notify("Patchview: No pending hunks", vim.log.levels.INFO)
+    return
+  end
+
   local line = vim.api.nvim_win_get_cursor(0)[1]
-  local hunk = hunks_mod.get_next(buf_state.hunks, line)
+  local hunk = hunks_mod.get_next(pending, line)
 
   if hunk then
     local start_line, _ = hunks_mod.get_line_range(hunk)
@@ -63,7 +73,7 @@ function M.next_hunk()
   end
 end
 
---- Navigate to the previous hunk
+--- Navigate to the previous hunk (only pending hunks)
 function M.prev_hunk()
   local patchview = require("patchview")
   local hunks_mod = require("patchview.hunks")
@@ -77,8 +87,18 @@ function M.prev_hunk()
     return
   end
 
+  -- Only navigate through pending hunks
+  local pending = vim.tbl_filter(function(h)
+    return h.status == "pending"
+  end, buf_state.hunks)
+
+  if #pending == 0 then
+    vim.notify("Patchview: No pending hunks", vim.log.levels.INFO)
+    return
+  end
+
   local line = vim.api.nvim_win_get_cursor(0)[1]
-  local hunk = hunks_mod.get_prev(buf_state.hunks, line)
+  local hunk = hunks_mod.get_prev(pending, line)
 
   if hunk then
     local start_line, _ = hunks_mod.get_line_range(hunk)
@@ -126,16 +146,25 @@ function M.accept_hunk()
     -- Record action for undo
     push_history(bufnr, "accept", hunk)
 
-    -- Update rendering
-    render.show_hunks(bufnr, buf_state.hunks, "pending")
+    -- Check remaining pending hunks
+    local pending = vim.tbl_filter(function(h)
+      return h.status == "pending"
+    end, buf_state.hunks)
+
+    -- If no more pending hunks, update baseline and cleanup
+    if #pending == 0 then
+      patchview._take_buffer_snapshot(bufnr)
+      buf_state.hunks = {}
+      render.clear(bufnr)
+      patchview._clear_buffer_nav_keymaps(bufnr)
+    else
+      -- Update rendering for remaining hunks
+      render.show_hunks(bufnr, buf_state.hunks, "pending")
+    end
 
     -- Update widget if enabled
     if config.options.widget and config.options.widget.enabled then
       local widget = require("patchview.widget")
-      -- Filter pending hunks and update widget
-      local pending = vim.tbl_filter(function(h)
-        return h.status == "pending"
-      end, buf_state.hunks)
       if #pending == 0 then
         widget.hide(bufnr)
       else
@@ -143,13 +172,13 @@ function M.accept_hunk()
       end
     end
 
-    -- Notify if enabled
-    if config.options.notify.on_accept then
-      notify_mod.hunk_accepted()
-    end
+    -- Always show feedback
+    vim.notify("Patchview: Hunk accepted (" .. #pending .. " remaining)", vim.log.levels.INFO)
 
-    -- Move to next hunk
-    M.next_hunk()
+    -- Move to next hunk if there are more
+    if #pending > 0 then
+      M.next_hunk()
+    end
   else
     vim.notify("Patchview: No pending hunk at cursor", vim.log.levels.INFO)
   end
@@ -182,10 +211,8 @@ function M.reject_hunk()
     -- Store previous state for undo
     local prev_status = hunk.status
 
-    -- In preview mode, revert the change
-    if config.options.mode == "preview" then
-      M._revert_hunk(bufnr, hunk)
-    end
+    -- Revert the hunk content (restore old lines)
+    M._revert_hunk(bufnr, hunk)
 
     -- Mark as rejected
     hunks_mod.reject(hunk)
@@ -193,16 +220,25 @@ function M.reject_hunk()
     -- Record action for undo
     push_history(bufnr, "reject", hunk)
 
-    -- Update rendering
-    render.show_hunks(bufnr, buf_state.hunks, "pending")
+    -- Check remaining pending hunks
+    local pending = vim.tbl_filter(function(h)
+      return h.status == "pending"
+    end, buf_state.hunks)
+
+    -- If no more pending hunks, update baseline and cleanup
+    if #pending == 0 then
+      patchview._take_buffer_snapshot(bufnr)
+      buf_state.hunks = {}
+      render.clear(bufnr)
+      patchview._clear_buffer_nav_keymaps(bufnr)
+    else
+      -- Update rendering for remaining hunks
+      render.show_hunks(bufnr, buf_state.hunks, "pending")
+    end
 
     -- Update widget if enabled
     if config.options.widget and config.options.widget.enabled then
       local widget = require("patchview.widget")
-      -- Filter pending hunks and update widget
-      local pending = vim.tbl_filter(function(h)
-        return h.status == "pending"
-      end, buf_state.hunks)
       if #pending == 0 then
         widget.hide(bufnr)
       else
@@ -210,13 +246,13 @@ function M.reject_hunk()
       end
     end
 
-    -- Notify if enabled
-    if config.options.notify.on_reject then
-      notify_mod.hunk_rejected()
-    end
+    -- Always show feedback
+    vim.notify("Patchview: Hunk rejected (" .. #pending .. " remaining)", vim.log.levels.INFO)
 
-    -- Move to next hunk
-    M.next_hunk()
+    -- Move to next hunk if there are more
+    if #pending > 0 then
+      M.next_hunk()
+    end
   else
     vim.notify("Patchview: No pending hunk at cursor", vim.log.levels.INFO)
   end
