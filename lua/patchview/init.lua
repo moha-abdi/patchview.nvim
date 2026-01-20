@@ -19,6 +19,7 @@ local modules = {
   git = nil,
   telescope = nil,
   widget = nil,
+  density = nil,
 }
 
 --- Lazy load a module
@@ -86,6 +87,12 @@ M.widget = setmetatable({}, {
   end,
 })
 
+M.density = setmetatable({}, {
+  __index = function(_, key)
+    return require_module("density")[key]
+  end,
+})
+
 -- State management
 M.state = {
   enabled = false,
@@ -108,6 +115,10 @@ function M.setup(opts)
   -- Setup signs
   local signs = require_module("signs")
   signs.setup()
+
+  -- Setup density module
+  local density = require_module("density")
+  density.setup()
 
   -- Setup widget
   local widget = require_module("widget")

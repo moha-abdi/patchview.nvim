@@ -61,6 +61,13 @@ function M.setup()
     PatchviewWidgetUndo = { fg = "#e06c75", bold = true },
     PatchviewWidgetKeep = { fg = "#98c379", bold = true },
     PatchviewWidgetPos = { fg = "#5c6370" },
+
+    -- Density indicator highlights (mini-map/ruler)
+    PatchviewDensityEmpty = { fg = "#2c323c" },
+    PatchviewDensityLow = { fg = "#50fa7b" },
+    PatchviewDensityMedium = { fg = "#f1fa8c" },
+    PatchviewDensityHigh = { fg = "#ff5555" },
+    PatchviewDensityExtreme = { fg = "#bd93f9", bold = true },
   }
 
   -- Apply custom highlights from config if provided

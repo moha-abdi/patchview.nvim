@@ -93,6 +93,13 @@ M.defaults = {
     auto_show = true,         -- Automatically show when changes are detected
     position = "bottom",      -- "top" or "bottom" relative to hunk
   },
+
+  -- Change density indicators (mini-map/ruler)
+  density = {
+    enabled = true,           -- Enable density indicators showing change locations
+    position = "right",       -- "right" (sign column) or "left" (gutter)
+    refresh_on_scroll = true, -- Update indicators when scrolling
+  },
 }
 
 -- Current configuration (will be populated by setup)

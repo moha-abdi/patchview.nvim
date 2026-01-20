@@ -45,6 +45,12 @@ function M.show_hunks(bufnr, hunks, mode)
   -- Clear existing marks (also clears topfill state and autocmds)
   M.clear(bufnr)
 
+  -- Update density indicators if enabled
+  if config.options.density.enabled then
+    local density = require("patchview.density")
+    density.update(bufnr, hunks)
+  end
+
   local ns = get_namespace()
   M.extmarks[bufnr] = M.extmarks[bufnr] or {}
 
@@ -311,6 +317,10 @@ function M.clear(bufnr)
   -- Clear signs
   local signs = require("patchview.signs")
   signs.clear(bufnr)
+
+  -- Clear density indicators
+  local density = require("patchview.density")
+  density.clear(bufnr)
 end
 
 --- Clear all rendering in all buffers
@@ -334,6 +344,9 @@ function M.clear_all()
 
   local signs = require("patchview.signs")
   signs.clear_all()
+
+  local density = require("patchview.density")
+  density.clear_all()
 end
 
 --- Fade out highlights (for animation)
