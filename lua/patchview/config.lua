@@ -85,13 +85,10 @@ M.defaults = {
     on_reject = false,        -- Notify on reject
   },
 
-  -- Floating action bar widget (like Cursor IDE)
+  -- Inline action widget (shows Accept/Reject after each hunk)
   widget = {
-    enabled = true,           -- Enable floating action bar
-    border_style = "rounded", -- "rounded", "single", "double", "shadow", or "none"
-    winblend = 0,             -- Transparency (0-100)
+    enabled = true,           -- Enable inline action buttons
     auto_show = true,         -- Automatically show when changes are detected
-    position = "bottom",      -- "top" or "bottom" relative to hunk
   },
 
   -- Change density indicators (mini-map/ruler)
