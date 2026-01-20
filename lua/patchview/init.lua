@@ -239,7 +239,7 @@ function M._create_commands()
   })
 end
 
---- Setup keymaps
+--- Setup global keymaps (excluding navigation which is buffer-local)
 function M._setup_keymaps()
   local config = require_module("config")
   local keymaps = config.options.keymaps
@@ -252,8 +252,9 @@ function M._setup_keymaps()
     end
   end
 
-  map(keymaps.next_hunk, function() M.next_hunk() end, "Next patchview hunk")
-  map(keymaps.prev_hunk, function() M.prev_hunk() end, "Previous patchview hunk")
+  -- Navigation keymaps (]c, [c) are set buffer-locally when hunks are detected
+  -- This allows them to coexist with gitsigns which uses the same keys globally
+  
   map(keymaps.accept_hunk, function() M.accept_hunk() end, "Accept current hunk")
   map(keymaps.reject_hunk, function() M.reject_hunk() end, "Reject current hunk")
   map(keymaps.accept_all, function() M.accept_all() end, "Accept all hunks")
@@ -262,6 +263,37 @@ function M._setup_keymaps()
   map(keymaps.telescope_changes, function() M.open_telescope() end, "Open patchview telescope")
   map(keymaps.split_diff, function() M.split_diff() end, "Toggle split diff view")
   map(keymaps.undo, function() M.undo() end, "Undo last patchview action")
+end
+
+--- Setup buffer-local navigation keymaps when hunks are detected
+---@param bufnr number Buffer number
+function M._setup_buffer_nav_keymaps(bufnr)
+  local config = require_module("config")
+  local keymaps = config.options.keymaps
+
+  if not keymaps then return end
+
+  local function buf_map(key, fn, desc)
+    if key and key ~= false then
+      vim.keymap.set("n", key, fn, { buffer = bufnr, desc = desc, silent = true })
+    end
+  end
+
+  buf_map(keymaps.next_hunk, function() M.next_hunk() end, "Next patchview hunk")
+  buf_map(keymaps.prev_hunk, function() M.prev_hunk() end, "Previous patchview hunk")
+end
+
+--- Remove buffer-local navigation keymaps when hunks are cleared
+---@param bufnr number Buffer number
+function M._clear_buffer_nav_keymaps(bufnr)
+  local config = require_module("config")
+  local keymaps = config.options.keymaps
+
+  if not keymaps then return end
+
+  -- Safely delete buffer-local keymaps
+  pcall(vim.keymap.del, "n", keymaps.next_hunk, { buffer = bufnr })
+  pcall(vim.keymap.del, "n", keymaps.prev_hunk, { buffer = bufnr })
 end
 
 --- Setup autocommands
@@ -426,7 +458,7 @@ end
 ---@return boolean True if line is visible
 local function is_line_visible(winnr, line)
   local view = vim.api.nvim_win_call(winnr, function()
-    return vim.api.nvim_win_get_view(0)
+    return vim.fn.winsaveview()
   end)
   local top_line = view.topline or 1
   local bot_line = top_line + vim.api.nvim_win_get_height(winnr) - 1
@@ -575,6 +607,9 @@ function M._on_file_change(bufnr, event)
       else
         -- Preview mode: show diff visualization (buffer reloaded but baseline not updated)
         render.show_hunks(bufnr, hunks, "pending")
+
+        -- Setup buffer-local navigation keymaps (overrides gitsigns ]c/[c)
+        M._setup_buffer_nav_keymaps(bufnr)
 
         -- Show floating widget if enabled
         if config.options.widget.enabled and config.options.widget.auto_show then
