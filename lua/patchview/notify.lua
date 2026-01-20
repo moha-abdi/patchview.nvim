@@ -3,62 +3,106 @@
 
 local M = {}
 
+-- Runtime quiet mode state (can be toggled independently of config)
+M._quiet_mode = false
+
+--- Initialize notify module with config
+---@param config table Configuration table
+function M.setup(config)
+  M._quiet_mode = config.options.notify.quiet_mode or false
+end
+
+--- Check if quiet mode is enabled
+---@return boolean True if quiet mode is active
+function M.is_quiet()
+  return M._quiet_mode
+end
+
+--- Set quiet mode state
+---@param enabled boolean Whether to enable quiet mode
+function M.set_quiet(enabled)
+  M._quiet_mode = enabled
+end
+
+--- Toggle quiet mode
+---@return boolean New quiet mode state
+function M.toggle_quiet()
+  M._quiet_mode = not M._quiet_mode
+  return M._quiet_mode
+end
+
+--- Internal notification function that respects quiet mode
+---@param msg string Message to display
+---@param level number Log level (vim.log.levels)
+local function notify_if_not_quiet(msg, level)
+  if not M._quiet_mode then
+    vim.notify(msg, level)
+  end
+end
+
 --- Notify that changes were detected
 ---@param bufnr number Buffer number
 ---@param hunk_count number Number of hunks detected
 function M.change_detected(bufnr, hunk_count)
   local filename = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ":t")
   local msg = string.format("Patchview: %d change(s) detected in %s", hunk_count, filename)
-  vim.notify(msg, vim.log.levels.INFO)
+  notify_if_not_quiet(msg, vim.log.levels.INFO)
 end
 
 --- Notify that a hunk was accepted
 function M.hunk_accepted()
-  vim.notify("Patchview: Hunk accepted", vim.log.levels.INFO)
+  notify_if_not_quiet("Patchview: Hunk accepted", vim.log.levels.INFO)
 end
 
 --- Notify that a hunk was rejected
 function M.hunk_rejected()
-  vim.notify("Patchview: Hunk rejected", vim.log.levels.INFO)
+  notify_if_not_quiet("Patchview: Hunk rejected", vim.log.levels.INFO)
 end
 
 --- Notify that watching started
 ---@param bufnr number Buffer number
 function M.watching_started(bufnr)
   local filename = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ":t")
-  vim.notify(string.format("Patchview: Watching %s", filename), vim.log.levels.INFO)
+  notify_if_not_quiet(string.format("Patchview: Watching %s", filename), vim.log.levels.INFO)
 end
 
 --- Notify that watching stopped
 ---@param bufnr number Buffer number
 function M.watching_stopped(bufnr)
   local filename = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ":t")
-  vim.notify(string.format("Patchview: Stopped watching %s", filename), vim.log.levels.INFO)
+  notify_if_not_quiet(string.format("Patchview: Stopped watching %s", filename), vim.log.levels.INFO)
 end
 
---- Notify an error
+--- Notify an error (errors are never suppressed by quiet mode)
 ---@param msg string Error message
 function M.error(msg)
+  -- Errors are always shown, even in quiet mode
   vim.notify("Patchview: " .. msg, vim.log.levels.ERROR)
 end
 
---- Notify a warning
+--- Notify a warning (warnings are never suppressed by quiet mode)
 ---@param msg string Warning message
 function M.warn(msg)
+  -- Warnings are always shown, even in quiet mode
   vim.notify("Patchview: " .. msg, vim.log.levels.WARN)
 end
 
 --- Notify info
 ---@param msg string Info message
 function M.info(msg)
-  vim.notify("Patchview: " .. msg, vim.log.levels.INFO)
+  notify_if_not_quiet("Patchview: " .. msg, vim.log.levels.INFO)
 end
 
 --- Show a more prominent notification (using floating window)
+--- Respects quiet mode
 ---@param title string Notification title
 ---@param lines string[] Notification content
 ---@param level number|nil Log level (default INFO)
 function M.show_floating(title, lines, level)
+  if M._quiet_mode then
+    return
+  end
+
   level = level or vim.log.levels.INFO
 
   -- Determine highlight based on level

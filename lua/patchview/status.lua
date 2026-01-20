@@ -9,6 +9,7 @@ function M.show()
   local hunks_mod = require("patchview.hunks")
   local watcher = require("patchview.watcher")
   local config = require("patchview.config")
+  local notify_mod = require("patchview.notify")
 
   local lines = {
     "Patchview Status",
@@ -17,6 +18,7 @@ function M.show()
     string.format("Plugin enabled: %s", patchview.state.enabled and "Yes" or "No"),
     string.format("Mode: %s", config.options.mode),
     string.format("Git-aware: %s", config.options.git.enabled and "Yes" or "No"),
+    string.format("Quiet mode: %s", notify_mod.is_quiet() and "Yes" or "No"),
     "",
     "Watched Buffers:",
     "----------------",
@@ -96,6 +98,7 @@ end
 function M.statusline()
   local patchview = require("patchview")
   local hunks_mod = require("patchview.hunks")
+  local notify_mod = require("patchview.notify")
 
   if not patchview.state.enabled then
     return ""
@@ -112,13 +115,16 @@ function M.statusline()
     return ""
   end
 
+  -- Add quiet mode indicator (whisper icon)
+  local quiet_indicator = notify_mod.is_quiet() and "" or ""
+
   local hunk_count = #buf_state.hunks
   if hunk_count == 0 then
-    return "PV:watching"
+    return "PV:watching" .. quiet_indicator
   end
 
   local stats = hunks_mod.get_stats(buf_state.hunks)
-  return string.format("PV:%d(+%d -%d)", stats.pending, stats.additions, stats.deletions)
+  return string.format("PV:%d(+%d -%d)%s", stats.pending, stats.additions, stats.deletions, quiet_indicator)
 end
 
 --- Get detailed statusline component (for lualine etc.)

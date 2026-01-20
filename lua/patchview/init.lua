@@ -113,6 +113,10 @@ function M.setup(opts)
   local widget = require_module("widget")
   widget.setup()
 
+  -- Setup notify
+  local notify = require_module("notify")
+  notify.setup(config)
+
   -- Create user commands
   M._create_commands()
 
@@ -212,6 +216,16 @@ function M._create_commands()
   cmd("PatchviewUndo", function()
     M.undo()
   end, { desc = "Undo last accept/reject action" })
+
+  cmd("PatchviewQuiet", function(args)
+    M.toggle_quiet(args.args)
+  end, {
+    desc = "Toggle quiet/whisper mode (suppress notifications)",
+    nargs = "?",
+    complete = function()
+      return { "on", "off" }
+    end,
+  })
 end
 
 --- Setup keymaps
@@ -775,6 +789,24 @@ end
 function M.toggle_widget()
   local widget_mod = require_module("widget")
   widget_mod.toggle()
+end
+
+--- Toggle quiet/whisper mode
+---@param state string|nil "on", "off", or nil to toggle
+function M.toggle_quiet(state)
+  local notify_mod = require_module("notify")
+
+  if state == "on" then
+    notify_mod.set_quiet(true)
+    vim.notify("Patchview: Quiet mode enabled", vim.log.levels.INFO)
+  elseif state == "off" then
+    notify_mod.set_quiet(false)
+    vim.notify("Patchview: Quiet mode disabled", vim.log.levels.INFO)
+  else
+    local is_quiet = notify_mod.toggle_quiet()
+    local status = is_quiet and "enabled" or "disabled"
+    vim.notify("Patchview: Quiet mode " .. status, vim.log.levels.INFO)
+  end
 end
 
 return M

@@ -79,6 +79,7 @@ M.defaults = {
 
   -- Notifications
   notify = {
+    quiet_mode = false,       -- Quiet/whisper mode (suppresses all notifications)
     on_change = true,         -- Notify when changes detected
     on_accept = false,        -- Notify on accept
     on_reject = false,        -- Notify on reject
