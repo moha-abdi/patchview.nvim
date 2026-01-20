@@ -7,6 +7,11 @@ local M = {}
 M.preview_win = nil
 M.preview_buf = nil
 
+-- Split diff state
+M.split_diff_win = nil
+M.split_diff_buf = nil
+M.split_diff_source_win = nil
+
 --- Show a floating preview window for a hunk
 ---@param hunk table Hunk object
 function M.show_hunk_preview(hunk)
@@ -127,10 +132,23 @@ function M._highlight_preview()
   end
 end
 
---- Show a split diff view
----@param bufnr number Buffer number
----@param hunk table Hunk object
-function M.show_split_diff(bufnr, hunk)
+--- Check if split diff view is currently open
+---@return boolean True if split diff is open
+function M.is_split_diff_open()
+  return M.split_diff_win ~= nil and vim.api.nvim_win_is_valid(M.split_diff_win)
+end
+
+--- Show a split diff view showing old (baseline) vs new (current) content
+--- Opens the baseline content in a vertical split on the left with Neovim's diff mode
+---@param bufnr number|nil Buffer number (defaults to current buffer)
+function M.show_split_diff(bufnr)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  
+  -- Close existing split diff first
+  if M.is_split_diff_open() then
+    M.close_split_diff()
+  end
+  
   -- Get original content
   local patchview = require("patchview")
   local buf_state = patchview.state.buffers[bufnr]
@@ -140,44 +158,92 @@ function M.show_split_diff(bufnr, hunk)
     return
   end
 
+  -- Store source window
+  M.split_diff_source_win = vim.api.nvim_get_current_win()
+  
+  -- Get current cursor position to sync later
+  local cursor = vim.api.nvim_win_get_cursor(0)
+
   -- Create a temporary buffer with old content
   local old_buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_lines(old_buf, 0, -1, false, buf_state.baseline)
   vim.bo[old_buf].buftype = "nofile"
+  vim.bo[old_buf].bufhidden = "wipe"
   vim.bo[old_buf].modifiable = false
+  vim.bo[old_buf].swapfile = false
+  
+  -- Set buffer name for identification
+  local filename = vim.api.nvim_buf_get_name(bufnr)
+  local short_name = vim.fn.fnamemodify(filename, ":t")
+  vim.api.nvim_buf_set_name(old_buf, "[Patchview] " .. short_name .. " (baseline)")
 
-  -- Get current buffer filetype for syntax
+  -- Get current buffer filetype for syntax highlighting
   local ft = vim.bo[bufnr].filetype
   vim.bo[old_buf].filetype = ft
 
-  -- Open in vertical split
-  vim.cmd("vsplit")
-  vim.api.nvim_win_set_buf(0, old_buf)
+  -- Store the buffer
+  M.split_diff_buf = old_buf
 
-  -- Enable diff mode
+  -- Open in vertical split to the left
+  vim.cmd("leftabove vsplit")
+  M.split_diff_win = vim.api.nvim_get_current_win()
+  vim.api.nvim_win_set_buf(M.split_diff_win, old_buf)
+
+  -- Enable diff mode in both windows
   vim.cmd("diffthis")
-  vim.cmd("wincmd p")
+  vim.cmd("wincmd p")  -- Go back to source window
   vim.cmd("diffthis")
 
-  -- Jump to hunk location
-  local hunks_mod = require("patchview.hunks")
-  local start_line, _ = hunks_mod.get_line_range(hunk)
-  vim.api.nvim_win_set_cursor(0, { start_line, 0 })
+  -- Set up buffer-local keymap to close the split diff with 'q' in the old buffer
+  vim.api.nvim_buf_set_keymap(old_buf, "n", "q", 
+    "<cmd>lua require('patchview.preview').close_split_diff()<CR>",
+    { noremap = true, silent = true, desc = "Close split diff" })
+
+  -- Jump to the same line in both windows (diff mode syncs scrolling)
+  -- First set cursor in source window
+  pcall(vim.api.nvim_win_set_cursor, 0, cursor)
+  
+  -- Then sync cursor in old content window
+  vim.api.nvim_set_current_win(M.split_diff_win)
+  local old_line_count = vim.api.nvim_buf_line_count(old_buf)
+  local target_line = math.min(cursor[1], old_line_count)
+  pcall(vim.api.nvim_win_set_cursor, M.split_diff_win, { target_line, 0 })
+  
+  -- Return focus to source window
+  vim.api.nvim_set_current_win(M.split_diff_source_win)
+  
+  -- Jump to first diff if there are changes
+  vim.cmd("normal! ]c")
 end
 
 --- Close split diff view
 function M.close_split_diff()
+  -- Disable diff mode in all windows
   vim.cmd("diffoff!")
-  -- Close the split if it's a patchview temp buffer
-  for _, win in ipairs(vim.api.nvim_list_wins()) do
-    local buf = vim.api.nvim_win_get_buf(win)
-    if vim.bo[buf].buftype == "nofile" then
-      local name = vim.api.nvim_buf_get_name(buf)
-      if name == "" then
-        vim.api.nvim_win_close(win, true)
-        break
-      end
-    end
+  
+  -- Close the split diff window if it exists
+  if M.split_diff_win and vim.api.nvim_win_is_valid(M.split_diff_win) then
+    vim.api.nvim_win_close(M.split_diff_win, true)
+  end
+  
+  -- Clean up the buffer (should be auto-wiped due to bufhidden=wipe, but just in case)
+  if M.split_diff_buf and vim.api.nvim_buf_is_valid(M.split_diff_buf) then
+    vim.api.nvim_buf_delete(M.split_diff_buf, { force = true })
+  end
+  
+  -- Reset state
+  M.split_diff_win = nil
+  M.split_diff_buf = nil
+  M.split_diff_source_win = nil
+end
+
+--- Toggle split diff view
+---@param bufnr number|nil Buffer number (defaults to current buffer)
+function M.toggle_split_diff(bufnr)
+  if M.is_split_diff_open() then
+    M.close_split_diff()
+  else
+    M.show_split_diff(bufnr)
   end
 end
 

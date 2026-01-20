@@ -175,6 +175,14 @@ function M._create_commands()
   cmd("PatchviewSnapshot", function()
     M.take_snapshot()
   end, { desc = "Take baseline snapshot" })
+
+  cmd("PatchviewDiff", function()
+    M.split_diff()
+  end, { desc = "Open split diff view" })
+
+  cmd("PatchviewDiffClose", function()
+    M.close_split_diff()
+  end, { desc = "Close split diff view" })
 end
 
 --- Setup keymaps
@@ -198,6 +206,7 @@ function M._setup_keymaps()
   map(keymaps.reject_all, function() M.reject_all() end, "Reject all hunks")
   map(keymaps.toggle_preview, function() M.toggle_preview() end, "Toggle preview mode")
   map(keymaps.telescope_changes, function() M.open_telescope() end, "Open patchview telescope")
+  map(keymaps.split_diff, function() M.split_diff() end, "Toggle split diff view")
 end
 
 --- Setup autocommands
@@ -613,6 +622,19 @@ end
 function M.statusline()
   local status_mod = require_module("status")
   return status_mod.statusline()
+end
+
+--- Open split diff view showing baseline vs current content
+function M.split_diff()
+  local preview = require_module("preview")
+  local bufnr = vim.api.nvim_get_current_buf()
+  preview.toggle_split_diff(bufnr)
+end
+
+--- Close split diff view
+function M.close_split_diff()
+  local preview = require_module("preview")
+  preview.close_split_diff()
 end
 
 return M

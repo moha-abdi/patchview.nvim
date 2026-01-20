@@ -1,0 +1,49 @@
+## T021 - Split diff view - COMPLETED (2026-01-20)
+
+### Implementation Summary
+Implemented side-by-side diff view in split windows that shows old (baseline) content vs new (current) content.
+
+### Changes Made:
+1. **lua/patchview/preview.lua**:
+   - Added split diff state variables (split_diff_win, split_diff_buf, split_diff_source_win)
+   - Added `is_split_diff_open()` function to check if split diff is active
+   - Enhanced `show_split_diff()` function:
+     - Opens vertical split with baseline content on the left
+     - Uses Neovim's native `diffthis` for scroll sync and highlighting
+     - Sets buffer name for identification
+     - Adds buffer-local 'q' keymap to close the split
+     - Syncs cursor position between windows
+     - Auto-jumps to first diff
+   - Enhanced `close_split_diff()` function:
+     - Properly closes diff mode and split window
+     - Cleans up buffer and state
+   - Added `toggle_split_diff()` function for easy toggling
+
+2. **lua/patchview/config.lua**:
+   - Added `split_diff = "<leader>pd"` to default keymaps
+
+3. **lua/patchview/init.lua**:
+   - Added `PatchviewDiff` command to open split diff view
+   - Added `PatchviewDiffClose` command to close split diff view
+   - Added keymap setup for `split_diff`
+   - Added public API functions: `split_diff()` and `close_split_diff()`
+
+4. **tests/test_preview.lua** (new file):
+   - Tests for preview module loading
+   - Tests for split diff function existence
+   - Tests for initial state (not open)
+   - Tests for close when not open
+   - Tests for main module API exposure
+   - Tests for config keymap (default, disabled, custom)
+
+### Acceptance Criteria Verification:
+- [x] Split view shows old vs new content - Opens baseline in left split, current in right
+- [x] Scroll sync works correctly - Uses Neovim's native diffthis for synchronized scrolling
+- [x] Can close split with keymap - 'q' in split buffer, or :PatchviewDiffClose command
+
+### Tests:
+All tests pass:
+- test_preview.lua: 8/8 PASS
+- test_integration.lua: 16/16 PASS
+- test_hunks.lua: 8/8 PASS
+- test_diff.lua: 11/11 PASS
